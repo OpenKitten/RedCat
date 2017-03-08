@@ -14,127 +14,7 @@ public class RedCat {
     
     deinit {
         _ = try? send(["QUIT"])
-    }
-    
-    public func setValue(to value: RedisValue, for key: String) throws {
-        try handleOK(try send(["SET", key, value.description]))
-    }
-    
-    public func get(_ key: String, _ keys: String...) throws -> [RedisValue] {
-        return try get([key] + keys)
-    }
-    
-    public func get(_ keys: [String]) throws -> [RedisValue] {
-        let command: [RedisValue] = ["MGET"] + keys
-        
-        guard let results = try handleError(try send(command)) as? [RedisValue] else {
-            throw RedisError("DRIVER Unexpected response")
-        }
-
-        return results
-    }
-    
-    public func updateValue(_ value: RedisValue, forKey key: String) throws {
-        try handleOK(try send(["SET", key, value.description]))
-    }
-
-    public func get(_ key: String) throws -> RedisValue {
-        return try handleError(try send(["GET", key]))
-    }
-    
-    public func removeValue(forKey key: String) throws {
-        try removeValue(forKeys: key)
-    }
-    
-    @discardableResult
-    public func removeValue(forKeys keys: String...) throws -> Int {
-        let response = try send(["DEL"] + keys)
-
-        guard let removedCount = response as? Int else {
-            throw (response as? RedisError) ?? RedisError("DRIVER Unknown error")
-        }
-
-        return removedCount
-    }
-    
-    public func listKeys(_ pattern: String = "*") throws -> [String] {
-        let response = try send(["KEYS", pattern])
-        
-        return (response as? Array ?? []).flatMap {
-            $0 as? String
-        }
-    }
-    
-    public enum Time {
-        case milliseconds(Int)
-        case seconds(Int)
-    }
-    
-    /// Returns true if the expiration was successfully applied
-    public func expire(_ key: String, atEpoch time: Time) throws -> Bool {
-        switch time {
-        case .milliseconds(let ms):
-            return try handleError(try send(["PEXPIREAT", key, ms])) as? Int == 1
-        case .seconds(let s):
-            return try handleError(try send(["EXPIREAT", key, s])) as? Int == 1
-        }
-    }
-    
-    /// Returns true if the expiration was successfully applied
-    @discardableResult
-    public func expire(_ key: String, after duration: Time) throws -> Bool {
-        switch duration {
-        case .milliseconds(let ms):
-            return try handleError(try send(["PEXPIRE", key, ms.description])) as? Int == 1
-        case .seconds(let s):
-            return try handleError(try send(["EXPIRE", key, s.description])) as? Int == 1
-        }
-    }
-    
-    /// Will return true if the TTL has been removed
-    ///
-    /// False means the key does not exist or had no TTL
-    @discardableResult
-    public func persist(_ key: String) throws -> Bool {
-        guard let removedTTL = try handleError(try send(["TTL", key])) as? Int else {
-            throw RedisError("DRIVER Invalid persist response returned. Expected Int")
-        }
-
-        return removedTTL == 1
-    }
-    
-    /// Will return -1 if there is no TTL
-    public func ttl(_ key: String) throws -> Int {
-        guard let remainingTTL = try handleError(try send(["TTL", key])) as? Int else {
-            throw RedisError("DRIVER Invalid TTL returned. Expected Int")
-        }
-        
-        return remainingTTL
-    }
-
-    /// Will return -1 if there is no TTL
-    public func pttl(_ key: String) throws -> Int {
-        guard let remainingTTL = try handleError(try send(["PTTL", key])) as? Int else {
-            throw RedisError("DRIVER Invalid TTL returned. Expected Int")
-        }
-        
-        return remainingTTL
-    }
-    
-    func handleError(_ response: RedisValue) throws -> RedisValue {
-        if let error = response as? RedisError {
-            throw error
-        }
-
-        return response
-    }
-    
-    func handleOK(_ redisResponse: RedisValue) throws {
-        guard let responseString = redisResponse as? String, responseString == "OK" else {
-            let error = redisResponse as? RedisError
-            
-            throw error ?? RedisError("DRIVER Unknown Error")
-        }
+        try? client.close()
     }
     
     public func send(_ element: RedisValue) throws -> RedisValue {
@@ -271,5 +151,21 @@ public class RedCat {
         }
         
         return try parse()
+    }
+    
+    func handleError(_ response: RedisValue) throws -> RedisValue {
+        if let error = response as? RedisError {
+            throw error
+        }
+        
+        return response
+    }
+    
+    func handleOK(_ redisResponse: RedisValue) throws {
+        guard let responseString = redisResponse as? String, responseString == "OK" else {
+            let error = redisResponse as? RedisError
+            
+            throw error ?? RedisError("DRIVER Unknown Error")
+        }
     }
 }

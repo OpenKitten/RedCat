@@ -11,8 +11,5 @@ let package = Package(
     dependencies: [
         // Provides sockets
         .Package(url: "https://github.com/vapor/socks.git", majorVersion: 1),
-        
-        // SSL
-        .Package(url: "https://github.com/vapor/tls.git", majorVersion: 1),
     ]
 )
